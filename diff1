@@ -1,0 +1,246 @@
+diff --git a/inc/Map.h b/inc/Map.h
+index 434d04b..a5e0c89 100644
+--- a/inc/Map.h
++++ b/inc/Map.h
+@@ -11,6 +11,7 @@
+ //#include "S60MapsAppView.h"
+ #include <w32std.h>
+ #include <lbsposition.h>
++#include <fbs.h>
+ 
+ 
+ // Forward declaration
+@@ -38,4 +39,49 @@ public:
+ 	void Draw(CWindowGc &aGc);
+ 	};
+ 
++// OpenStreetMap
++class COsmMapLayer : public CMapLayerBase
++	{
++public:
++	COsmMapLayer(/*const*/ CS60MapsAppView* aMapView);
++	void Draw(CWindowGc &aGc);
++	};
++
++
++class CTileManagerCache;
++
++// Tilemanager
++class CTileManager : public CBase
++	{
++private:
++	CTileManagerCache* iTileCache;
++	TFileName iCacheDir;
++	
++	CTileManager();
++	void ConstructL(const TDesC &aTilesCacheDir);
++public:
++	static CTileManager* NewLC(const TDesC &aTilesCacheDir);
++	static CTileManager* NewL(const TDesC &aTilesCacheDir);
++	
++	~CTileManager();
++	//void LoadTileBitmapAsync(const TTile &aTile);	// Asynchronously load tile
++	//												// from disk cache or from url
++	CFbsBitmap* LoadTileBitmap(const TTile &aTile); // The same as previous but synchronous
++	};
++
++// Tile manager`s bitmap pointers cache
++// ToDo: Need optimize
++const TInt KTileManagerCacheMaxSize = 30;
++
++class CTileManagerCache : public CBase
++	{
++private:
++	RArray<TTile> iTiles;
++	RArray<CFbsBitmap*> iBitmaps;
++public:
++	~CTileManagerCache();
++	CFbsBitmap* GetTileBitmap(const TTile &aTile); // Return NULL if image not found in cache
++	void AddTileBitmap(const TTile &aTile, CFbsBitmap* aBitmap);
++	};
++
+ #endif /* MAP_H_ */
+diff --git a/inc/S60MapsAppView.h b/inc/S60MapsAppView.h
+index 3640855..004e52a 100644
+--- a/inc/S60MapsAppView.h
++++ b/inc/S60MapsAppView.h
+@@ -106,7 +106,7 @@ private:
+ 	TCoordinate iPosition; // Coordinates of control`s center
+ 	/*TUint8*/ TInt iZoom; // Zoom level from KMinZoomLevel to KMaxZoomLevel
+ 	// ToDo: Implement type for zoom level
+-	TFixedArray<CMapLayerBase*, 1> iLayers;
++	TFixedArray<CMapLayerBase*, 2> iLayers;
+ 	
+ 	void Move(const TCoordinate &aPos);
+ 	void Move(const TCoordinate &aPos, /*TUint8*/ TInt aZoom);
+diff --git a/src/Map.cpp b/src/Map.cpp
+index 609be39..05cce13 100644
+--- a/src/Map.cpp
++++ b/src/Map.cpp
+@@ -43,3 +43,120 @@ void CMapLayerStub::Draw(CWindowGc &aGc)
+ 			}
+ 		}
+ 	}
++
++COsmMapLayer::COsmMapLayer(/*const*/ CS60MapsAppView* aMapView) :
++		CMapLayerBase(aMapView)
++	{
++	}
++
++void COsmMapLayer::Draw(CWindowGc &aGc)
++	{
++	
++	}
++
++
++// CTileManager
++CTileManager::CTileManager()
++	{
++	}
++
++CTileManager::~CTileManager()
++	{
++	delete iTileCache;
++	}
++
++
++void CTileManager::ConstructL(const TDesC &aTilesCacheDir)
++	{
++	iTileCache = new (ELeave) CTileManagerCache;
++	
++	if (iCacheDir.MaxLength() >= aTilesCacheDir.Length())
++		iCacheDir.Copy(aTilesCacheDir);
++	else
++		User::Leave(KErrArgument /*KErrBadDescriptor*/);
++	}
++
++CTileManager* CTileManager::NewLC(const TDesC &aTilesCacheDir)
++	{
++	CTileManager* self = new (ELeave) CTileManager;
++	CleanupStack::PushL(self);
++	self->ConstructL();
++	return self;
++	}
++
++CTileManager* CTileManager::NewL(const TDesC &aTilesCacheDir)
++	{
++	CTileManager* self = CTileManager::NewLC(aTilesCacheDir);
++	CleanupStack::Pop();
++	return self;
++	}
++
++//void LoadTileBitmapAsync(const TTile &aTile);
++
++CFbsBitmap* CTileManager::LoadTileBitmap(const TTile &aTile)
++	{
++	// Check memory-cache first
++	CFbsBitmap* bitmap = iTileCache->GetTileBitmap(aTile);
++	if (bitmap != NULL)
++		return bitmap;
++	
++	// Check folder
++	RFs fs;
++	fs.SetHandle(CCoeEnv::Static()->FsSession().Handle());
++	_LIT(KPathDelimiter, "\\");
++	_LIT(KTileFileExtensionWithDot, ".png");
++	TFileName filePath(iCacheDir);
++	filePath.AppendNum(aTile.iZ);
++	filePath.Append(KPathDelimiter);
++	filePath.AppendNum(aTile.iX);
++	filePath.Append(KPathDelimiter);
++	filePath.AppendNum(aTile.iY);
++	filePath.Append(KTileFileExtensionWithDot);
++	RFile file;
++	if (file.Open(fs, filePath, EFileRead) == KErrNone)
++		{
++		
++		}
++	
++	// Load tile from server
++	// ...
++	}
++ 
++
++// CTileManagerCache
++CTileManagerCache::~CTileManagerCache()
++	{
++	iTiles.Close();
++	iBitmaps.Close();
++	}
++
++CFbsBitmap* CTileManagerCache::GetTileBitmap(const TTile &aTile)
++	{
++	if (iTiles.Count())
++		{
++		TInt i;
++		for (i = 0; i < iTiles.Count(); i++)
++			{
++			if (iTiles[i] == aTile)
++				return iBitmaps[i];
++			}
++		}
++	
++	return NULL;
++	}
++
++void CTileManagerCache::AddTileBitmap(const TTile &aTile, CFbsBitmap* aBitmap)
++	{
++	if (GetTileBitmap(aTile) == NULL) // Check if tile not cached yet
++		{
++		// Remove last item if size is over limit
++		if (iTiles.Count() == KTileManagerCacheMaxSize)
++			{
++			iTiles.Remove(iTiles.Count() - 1);
++			iBitmaps.Remove(iBitmaps.Count() - 1);
++			}
++		
++		iTiles.Append(aTile);
++		iBitmaps.Append(aBitmap);
++		}
++	}
+diff --git a/src/S60MapsAppView.cpp b/src/S60MapsAppView.cpp
+index c1c8d4f..c6282d0 100644
+--- a/src/S60MapsAppView.cpp
++++ b/src/S60MapsAppView.cpp
+@@ -53,7 +53,8 @@ CS60MapsAppView* CS60MapsAppView::NewLC(const TRect& aRect,
+ void CS60MapsAppView::ConstructL(const TRect& aRect)
+ 	{
+ 	// Create layers
+-	iLayers[0] = new (ELeave) CMapLayerStub(this);
++	iLayers[0] = new (ELeave) COsmMapLayer(this);
++	iLayers[1] = new (ELeave) CMapLayerStub(this);
+ 	
+ 	// Create a window for this application view
+ 	CreateWindowL();
+diff --git a/src/S60MapsDocument.cpp b/src/S60MapsDocument.cpp
+index 186faec..5cc2390 100644
+--- a/src/S60MapsDocument.cpp
++++ b/src/S60MapsDocument.cpp
+@@ -11,6 +11,13 @@
+ #include "S60MapsAppUi.h"
+ #include "S60MapsDocument.h"
+ 
++// Constants
++#ifdef __WINS__
++_LIT(KProgramDataDir, "c:\\data\\S60Maps\\"); // Store data on disk C for emulator
++#else
++_LIT(KProgramDataDir, "e:\\data\\S60Maps\\");
++#endif
++
+ // ============================ MEMBER FUNCTIONS ===============================
+ 
+ // -----------------------------------------------------------------------------
+@@ -46,7 +53,12 @@ CS60MapsDocument* CS60MapsDocument::NewLC(CEikApplication& aApp)
+ //
+ void CS60MapsDocument::ConstructL()
+ 	{
+-	// No implementation required
++	// Create data directory if no exist
++	RFs fs;
++	fs.SetHandle(CCoeEnv::Static()->FsSession().Handle());
++	TInt res = fs.MkDirAll(KProgramDataDir);
++	if (res != KErrNone && res != KErrAlreadyExists)
++		User::Leave(res);
+ 	}
+ 
+ // -----------------------------------------------------------------------------
