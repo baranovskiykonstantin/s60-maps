@@ -114,7 +114,10 @@ private:
 	TCoordinate iCenterPosition; // Similar to iTopLeftPosition, but used for
 				// more accurate moving to position when zoom changed
 				// ToDo: Any ideas how to make it without additional property? 
-	TFixedArray<CMapLayerBase*, 2> iLayers;
+	TFixedArray<CMapLayerBase*, 3> iLayers;
+	
+	TCoordinate iUserPosition;
+	TBool iIsUserPositionRecieved;
 	
 	void Move(const TPoint &aPoint, TBool savePos = ETrue); // Used by all another Move methods
 	void Move(const TCoordinate &aPos);
@@ -131,6 +134,8 @@ private:
 	/*inline*/ TPoint ProjectionCoordsToScreenCoords(const TPoint &aPoint) const;
 	/*inline*/ TPoint ScreenCoordsToProjectionCoords(const TPoint &aPoint) const;
 	
+	void UpdateUserPosition();
+	
 public:
 	/*inline*/ TZoom GetZoom() const;
 	TCoordinate GetCenterCoordinate() const;
@@ -141,6 +146,11 @@ public:
 	void Bounds(TCoordinate &aTopLeftCoord, TCoordinate &aBottomRightCoord) const;
 	void Bounds(TTile &aTopLeftTile, TTile &aBottomRightTile) const;
 	void Bounds(TTileReal &aTopLeftTile, TTileReal &aBottomRightTile) const;
+	
+	void SetUserPosition(const TCoordinate& aPos);
+	TInt UserPosition(TCoordinate& aPos);
+	void ShowUserPosition();
+	void HideUserPosition();
 
 	};
 	

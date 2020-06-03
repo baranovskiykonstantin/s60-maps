@@ -57,6 +57,7 @@ void CS60MapsAppView::ConstructL(const TRect& aRect, const TCoordinate &aInitial
 	// Create layers
 	iLayers[0] = CTiledMapLayer::NewL(this); 
 	iLayers[1] = new (ELeave) CMapLayerDebugInfo(this);
+	iLayers[2] = new (ELeave) CUserPositionLayer(this);
 	
 	// Create a window for this application view
 	CreateWindowL();
@@ -414,6 +415,38 @@ void CS60MapsAppView::Bounds(TTileReal &aTopLeftTile, TTileReal &aBottomRightTil
 	Bounds(topLeftCoord, bottomRightCoord);
 	aTopLeftTile = MapMath::GeoCoordsToTileReal(topLeftCoord, GetZoom());
 	aBottomRightTile = MapMath::GeoCoordsToTileReal(bottomRightCoord, GetZoom());
+	}
+
+void CS60MapsAppView::UpdateUserPosition()
+	{
+	DrawNow();
+	}
+
+void CS60MapsAppView::SetUserPosition(const TCoordinate& aPos)
+	{
+	iUserPosition = aPos;
+	ShowUserPosition();
+	}
+
+TInt CS60MapsAppView::UserPosition(TCoordinate& aPos)
+	{
+	if (!iIsUserPositionRecieved)
+		return KErrNotFound;
+	
+	aPos = iUserPosition;
+	return KErrNone;
+	}
+
+void CS60MapsAppView::ShowUserPosition()
+	{
+	iIsUserPositionRecieved = ETrue;
+	UpdateUserPosition();
+	}
+
+void CS60MapsAppView::HideUserPosition()
+	{
+	iIsUserPositionRecieved = EFalse;
+	UpdateUserPosition();
 	}
 
 // End of File
