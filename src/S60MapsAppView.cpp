@@ -12,6 +12,9 @@
 #include "S60MapsAppView.h"
 #include <e32math.h>
 #include "Defs.h"
+//////////
+#include <eikenv.h>
+////////////
 
 // Constants
 const TZoom KMinZoomLevel = /*0*/ 1;
@@ -172,6 +175,17 @@ void CS60MapsAppView::SizeChanged()
 TKeyResponse CS60MapsAppView::OfferKeyEventL(const TKeyEvent &aKeyEvent,
 		TEventCode aType)
 	{
+	//////////////
+	if (aType == EEventKey)
+		{
+		TBuf<200> buff;
+		buff.Format(_L("iScanCode=%d\niCode=%u\niModifiers=%u\niRepeaters=%d"),
+				aKeyEvent.iScanCode, aKeyEvent.iCode, aKeyEvent.iModifiers, aKeyEvent.iRepeats);
+		CEikonEnv::Static()->AlertWin(buff);
+		//return EKeyWasConsumed;
+		}
+	/////////////////
+	
 	if (aType == EEventKey /*EEventKeyDown*/)
 		{
 		switch (aKeyEvent.iScanCode)
@@ -227,6 +241,14 @@ TKeyResponse CS60MapsAppView::OfferKeyEventL(const TKeyEvent &aKeyEvent,
 		}
 	
 	return EKeyWasNotConsumed;
+	}
+
+TCoeInputCapabilities CS60MapsAppView::InputCapabilities() const
+	{
+	TCoeInputCapabilities caps(CCoeControl::InputCapabilities());
+	caps.SetCapabilities(caps.Capabilities() | TCoeInputCapabilities::ENavigation
+			| TCoeInputCapabilities::EAllText | TCoeInputCapabilities::EDialableCharacters);
+	return caps;
 	}
 
 void CS60MapsAppView::Move(const TPoint &aPoint, TBool aSavePos)

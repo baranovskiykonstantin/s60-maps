@@ -85,6 +85,7 @@ public:
 	
 	/*virtual*/ TKeyResponse OfferKeyEventL(const TKeyEvent &aKeyEvent,
 			TEventCode aType);
+	TCoeInputCapabilities InputCapabilities() const;
 
 private:
 	// Constructors
